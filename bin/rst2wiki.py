@@ -2,6 +2,9 @@ import sys
 import os
 import json
 from pprint import pprint
+
+from docutils.core import publish_string
+from rst2confluence import confluence
 import requests
 import requests.packages.urllib3
 requests.packages.urllib3.disable_warnings()
@@ -17,7 +20,8 @@ def config_data(config=None):
 
 def generate_content(filename):
     with open(filename) as f:
-        content = f.read()
+        rst = f.read()
+    content = publish_string(rst, writer=confluence.Writer())
     return content
 
 
