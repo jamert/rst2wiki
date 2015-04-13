@@ -3,6 +3,8 @@ import distutils.command.install_scripts
 import distutils.command.install_data
 import os
 import shutil
+# dirty hack for locale bug (for docutils)
+os.environ['LC_CTYPE'] = 'en_US.UTF8'
 
 
 PACKAGE = "rst2wiki"
@@ -22,29 +24,6 @@ scripts = list()
 
 for b in script_files:
     scripts.append(os.path.join(scripts_dir, b) + ".py")
-
-
-def get_data_files():
-    data_dir = 'share'
-    dest_dir = os.path.join('share', PACKAGE)
-    accum = list()
-
-    def deep(dir_):
-        real_dir = os.path.join(data_dir, dir_)
-        files = list()
-        if not os.path.isdir(real_dir):
-            return
-        for f in os.listdir(real_dir):
-            fname = os.path.join(real_dir, f)
-            if os.path.isfile(fname):
-                files.append(fname)
-            else:
-                deep(os.path.join(dir_, f))
-        if files:
-            accum.append((os.path.join(dest_dir, dir_), files))
-
-    deep('')
-    return accum
 
 
 class strip_dot_py(distutils.command.install_scripts.install_scripts):
@@ -68,7 +47,6 @@ def run_setup():
           scripts=scripts,
           install_requires=install_requires,
           cmdclass={"install_scripts": strip_dot_py},
-          data_files=get_data_files(),
           )
 
 if __name__ == '__main__':
