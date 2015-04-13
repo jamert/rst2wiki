@@ -3,6 +3,8 @@ import os
 import json
 from pprint import pprint
 
+# dirty hack for locale bug (for docutils)
+os.environ['LC_CTYPE'] = 'en_US.UTF8'
 from docutils.core import publish_string
 from rst2confluence import confluence
 import requests
