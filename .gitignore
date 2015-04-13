@@ -1,0 +1,10 @@
+*.pyc
+deps
+dist
+venv
+*.egg-info
+.coverage
+_build
+*.sublime*
+.noseids
+MANIFEST
