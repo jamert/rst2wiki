@@ -39,7 +39,7 @@ class strip_dot_py(distutils.command.install_scripts.install_scripts):
 
 def run_setup():
     setup(name=PACKAGE,
-          version='0.1.0',
+          version='0.1.1',
           description='Tool to push reST docs to confluence',
           author='Artem Dayneko',
           author_email='a.dayneko@ngenix.net',
