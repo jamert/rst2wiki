@@ -28,7 +28,7 @@ def generate_content(filename):
     return content
 
 
-def push_content(content, page_id, config):
+def push_content(content, page_id, ancestor_page_id=None, config=None):
     hostname, auth = config_data(config)
     url = hostname.rstrip('/') + '/rest/api/content/{}'.format(page_id)
     page = requests.get(url, auth=auth).json()
@@ -39,6 +39,9 @@ def push_content(content, page_id, config):
             "version": {"number": page['version']['number'] + 1},
             "body": {"wiki": {"value": content,
                               "representation": "wiki"}}}
+    if ancestor_page_id:
+        wrap['ancestors'] = [{'type': 'page', 'id': ancestor_page_id}]
+
     req = requests.put(url, auth=auth,
                        headers={'Content-Type': 'application/json'},
                        data=json.dumps(wrap))
@@ -54,15 +57,17 @@ def parse_args():
         help='configuration file location (default: ~/.wiki.json)')
     parser.add_argument('source', help='reST source file')
     parser.add_argument('page_id', help='page id in confluence', type=int)
+    parser.add_argument('ancestor_page_id', help='parent page id', type=int,
+                        default=None, nargs='?')
     args = parser.parse_args()
-    return args.config, args.source, args.page_id
+    return args.config, args.source, args.page_id, args.ancestor_page_id
 
 
-def main(config, filename, page_id):
+def main(config, filename, page_id, ancestor=None):
     content = generate_content(filename)
-    push_content(content, page_id, config)
+    push_content(content, page_id, ancestor, config)
 
 
 if __name__ == '__main__':
-    config, source, page_id = parse_args()
-    main(config, source, page_id)
+    config, source, page_id, ancestor = parse_args()
+    main(config, source, page_id, ancestor)
