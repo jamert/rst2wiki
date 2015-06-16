@@ -63,11 +63,7 @@ def parse_args():
     return args.config, args.source, args.page_id, args.ancestor_page_id
 
 
-def main(config, filename, page_id, ancestor=None):
-    content = generate_content(filename)
-    push_content(content, page_id, ancestor, config)
-
-
-if __name__ == '__main__':
+def main():
     config, source, page_id, ancestor = parse_args()
-    main(config, source, page_id, ancestor)
+    content = generate_content(source)
+    push_content(content, page_id, ancestor, config)
