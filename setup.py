@@ -6,7 +6,7 @@ os.environ['LC_CTYPE'] = 'en_US.UTF8'
 
 setup(
     name='rst2wiki',
-    version='0.1.2',
+    version='0.1.3',
     description='Tool to push reST docs to confluence',
     author='Artem Dayneko',
     author_email='dayneko.ab@gmail.com',
