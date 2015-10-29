@@ -3,8 +3,8 @@
 import os
 import json
 from pprint import pprint
-import argparse
 
+import click
 # dirty hack for locale bug (for docutils)
 os.environ['LC_CTYPE'] = 'en_US.UTF8'
 from docutils.core import publish_string
@@ -14,9 +14,7 @@ import requests.packages.urllib3
 requests.packages.urllib3.disable_warnings()
 
 
-def config_data(config=None):
-    if not config:
-        config = os.path.join(os.getenv('HOME'), '.wiki.json')
+def config_data(config):
     with open(config) as f:
         data = json.load(f)
     return data['url'], (data['user'], data['password'])
@@ -57,24 +55,37 @@ def push_content(content, page_id, ancestor_page_id=None, config=None):
                        headers={'Content-Type': 'application/json'},
                        data=json.dumps(wrap))
     if req.status_code != 200:
-        print 'Something went wrong, analyze response:'
+        click.echo('Something went wrong, analyze response:')
         pprint(req.json())
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '-c', '--config',
-        help='configuration file location (default: ~/.wiki.json)')
-    parser.add_argument('source', help='reST source file')
-    parser.add_argument('page_id', help='page id in confluence', type=int)
-    parser.add_argument('ancestor_page_id', help='parent page id', type=int,
-                        default=None, nargs='?')
-    args = parser.parse_args()
-    return args.config, args.source, args.page_id, args.ancestor_page_id
+def required(ctx, param, value):
+    if value is None:
+        raise click.BadParameter('option is required')
+    else:
+        return value
 
 
-def main():
-    config, source, page_id, ancestor = parse_args()
+@click.command()
+@click.argument('source', type=click.Path(exists=True, dir_okay=False))
+@click.option('-p', '--page', type=click.INT,
+              callback=required,
+              help='page id in Confluence')
+@click.option('-a', '--ancestor', type=click.INT,
+              help='ancestor page id in Confluence')
+@click.option('-c', '--config',
+              type=click.Path(resolve_path=True),
+              default=os.path.join(os.getenv('HOME'), '.wiki.json'),
+              help='configuration file (default: ~/.wiki.json)')
+@click.version_option()
+def main(source, page, ancestor, config):
+    """
+    Tool converts SOURCE file in reStructuredText format to confluence
+    wiki format and pushes it in Confluence instance
+    """
     content = generate_content(source)
-    push_content(content, page_id, ancestor, config)
+    push_content(content, page, ancestor, config)
+
+
+if __name__ == '__main__':
+    main()
