@@ -2,7 +2,7 @@
 # coding=utf-8
 import os
 import json
-from pprint import pprint
+from pprint import pformat
 
 import click
 # dirty hack for locale bug (for docutils)
@@ -40,23 +40,39 @@ def generate_content(filename):
 def push_content(content, page_id, ancestor_page_id=None, config=None):
     hostname, auth = config_data(config)
     url = hostname.rstrip('/') + '/rest/api/content/{}'.format(page_id)
-    page = requests.get(url, auth=auth).json()
-    wrap = {"id": page['id'],
+
+    try:
+        click.echo('Requesting page {}...'.format(page_id))
+        req = requests.get(url, auth=auth)
+        req.raise_for_status()
+        page = req.json()
+
+        wrap = {
+            "id": page['id'],
             "type": "page",
             "title": page['title'],
             "space": {"key": page['space']['key']},
             "version": {"number": page['version']['number'] + 1},
             "body": {"wiki": {"value": content,
                               "representation": "wiki"}}}
-    if ancestor_page_id:
-        wrap['ancestors'] = [{'type': 'page', 'id': ancestor_page_id}]
+        if ancestor_page_id:
+            wrap['ancestors'] = [{'type': 'page', 'id': ancestor_page_id}]
 
-    req = requests.put(url, auth=auth,
-                       headers={'Content-Type': 'application/json'},
-                       data=json.dumps(wrap))
-    if req.status_code != 200:
-        click.echo('Something went wrong, analyze response:')
-        pprint(req.json())
+        click.echo('Writing to Confluence...')
+        req = requests.put(
+            url, auth=auth,
+            headers={'Content-Type': 'application/json'},
+            data=json.dumps(wrap))
+        req.raise_for_status()
+        click.echo('Page {} successfully updated'.format(page_id))
+    except requests.ConnectionError:
+        click.echo('Could not connect to url {}'.format(url))
+    except Exception:
+        click.echo('Something went wrong, analyze response from server:')
+        if req.headers.get('Content-Type') == 'application/json':
+            click.echo(pformat(req.json()))
+        else:
+            click.echo(pformat(req.text))
 
 
 def required(ctx, param, value):
