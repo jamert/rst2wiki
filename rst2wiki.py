@@ -16,10 +16,33 @@ requests.packages.urllib3.disable_warnings()
 
 def config_data(config):
     if not os.path.exists(config):
-        raise click.FileError(config, 'provide path to configuration')
+        return make_config(config)
+
     with open(config) as f:
         data = json.load(f)
     return data['url'], (data['user'], data['password'])
+
+
+def make_config(default_path):
+    path = click.prompt(
+        'Configuration file location',
+        type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+        default=default_path)
+    url = click.prompt('Confluence URL', type=click.STRING)
+    user = click.prompt('Confluence login', type=click.STRING)
+    password = click.prompt(
+        'Confluence password',
+        type=click.STRING,
+        hide_input=True)
+
+    with open(path, 'w') as f:
+        json.dump(
+            {'url': url,
+             'user': user,
+             'password': password}, f)
+    click.echo('Wrote configuration to {}'.format(path))
+
+    return url, (user, password)
 
 
 def generate_content(filename):
