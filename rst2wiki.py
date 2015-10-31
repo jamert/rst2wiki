@@ -21,6 +21,7 @@ def config_data(config):
 
 
 def generate_content(filename):
+    click.echo('Preparing content...')
     with open(filename) as f:
         rst = f.read()
     content = publish_string(rst, writer=confluence.Writer())
@@ -41,56 +42,74 @@ def page_url(hostname, page_id):
     return hostname.rstrip('/') + '/rest/api/content/{}'.format(page_id)
 
 
-def push_content(content, page_id, ancestor_page_id=None, config=None):
-    hostname, auth = config_data(config)
+def fetch_page(page_id, hostname, auth):
+    click.echo('Fetching page {}...'.format(page_id))
     url = page_url(hostname, page_id)
+    response = requests.get(url, auth=auth)
+    response.raise_for_status()
+    return response.json()
+
+
+def push_page(meta, hostname, auth):
+    page_id = meta['id']
+    click.echo('Writing to Confluence...')
+    response = requests.put(
+        page_url(hostname, page_id),
+        auth=auth,
+        headers={'Content-Type': 'application/json'},
+        data=json.dumps(meta))
+    response.raise_for_status()
+    click.echo('Page {} successfully updated'.format(page_id))
+
+
+def prepare_for_sending(content, page, ancestor_page=None):
+    meta = {
+        'id': page['id'],
+        'type': 'page',
+        'title': page['title'],
+        'space': {'key': page['space']['key']},
+        'version': {'number': page['version']['number'] + 1},
+        'body': {'wiki': {'value': content,
+                          'representation': 'wiki'}}
+    }
+
+    if ancestor_page:
+        meta['ancestors'] = [{'type': 'page', 'id': ancestor_page['id']}]
+
+        if meta['space']['key'] != ancestor_page['space']['key']:
+            raise click.ClickException(
+                "Your ancestor page belongs to another space ({} <> {}).\n"
+                "Because it is currently not possible to change "
+                "page's space\nthrough Confluence REST API, "
+                "you'll need to do it manually."
+                .format(meta['space']['key'],
+                        ancestor_page['space']['key']))
+
+    return meta
+
+
+def publish_content(content, page_id, ancestor_id=None, config=None):
+    hostname, auth = config_data(config)
 
     try:
-        click.echo('Fetching page {}...'.format(page_id))
-        req = requests.get(url, auth=auth)
-        req.raise_for_status()
-        page = req.json()
-
-        wrap = {
-            "id": page['id'],
-            "type": "page",
-            "title": page['title'],
-            "space": {"key": page['space']['key']},
-            "version": {"number": page['version']['number'] + 1},
-            "body": {"wiki": {"value": content,
-                              "representation": "wiki"}}}
-
-        if ancestor_page_id:
-            click.echo('Fetching ancestor page {}...'.format(ancestor_page_id))
-            req = requests.get(page_url(hostname, ancestor_page_id), auth=auth)
-            req.raise_for_status()
-            ancestor_page = req.json()
-            wrap['ancestors'] = [{'type': 'page', 'id': ancestor_page_id}]
-
-            if wrap['space']['key'] != ancestor_page['space']['key']:
-                raise click.ClickException(
-                    "Your ancestor page belongs to another space ({} <> {}).\n"
-                    "Because it is currently not possible to change "
-                    "page's space\nthrough Confluence REST API, "
-                    "you'll need to do it manually."
-                    .format(wrap['space']['key'],
-                            ancestor_page['space']['key']))
-
-        click.echo('Writing to Confluence...')
-        req = requests.put(
-            url, auth=auth,
-            headers={'Content-Type': 'application/json'},
-            data=json.dumps(wrap))
-        req.raise_for_status()
-        click.echo('Page {} successfully updated'.format(page_id))
-    except requests.ConnectionError:
-        raise click.ClickException('Could not connect to url {}'.format(url))
-    except (requests.RequestException, KeyError):
-        click.echo('Something went wrong, analyze response from server:')
-        if req.headers.get('Content-Type') == 'application/json':
-            click.echo(pformat(req.json()))
+        page = fetch_page(page_id, hostname, auth)
+        if ancestor_id:
+            ancestor_page = fetch_page(ancestor_id, hostname, auth)
         else:
-            click.echo(pformat(req.text))
+            ancestor_page = None
+
+        meta = prepare_for_sending(content, page, ancestor_page)
+
+        push_page(meta, hostname, auth)
+    except requests.ConnectionError:
+        raise click.ClickException(
+            'Could not connect to hostname {}'.format(hostname))
+    except requests.RequestException as e:
+        click.echo('Something went wrong, analyze response from server:')
+        if e.response.headers.get('Content-Type') == 'application/json':
+            click.echo(pformat(e.response.json()))
+        else:
+            click.echo(pformat(e.response.text))
         raise click.Abort()
 
 
@@ -105,13 +124,13 @@ def required(ctx, param, value):
 @click.argument('source', type=click.Path(exists=True, dir_okay=False))
 @click.option('-p', '--page', type=click.INT,
               callback=required,
-              help='page id in Confluence')
+              help='Page id in Confluence')
 @click.option('-a', '--ancestor', type=click.INT,
-              help='ancestor page id in Confluence')
+              help='Ancestor page id in Confluence')
 @click.option('-c', '--config',
               type=click.Path(resolve_path=True),
               default=os.path.join(os.getenv('HOME'), '.wiki.json'),
-              help='configuration file (default: ~/.wiki.json)')
+              help='Configuration file')
 @click.version_option()
 def main(source, page, ancestor, config):
     """
@@ -119,7 +138,7 @@ def main(source, page, ancestor, config):
     wiki format and pushes it in Confluence instance
     """
     content = generate_content(source)
-    push_content(content, page, ancestor, config)
+    publish_content(content, page, ancestor, config)
 
 
 if __name__ == '__main__':
