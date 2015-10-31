@@ -15,6 +15,8 @@ requests.packages.urllib3.disable_warnings()
 
 
 def config_data(config):
+    if not os.path.exists(config):
+        raise click.FileError(config, 'provide path to configuration')
     with open(config) as f:
         data = json.load(f)
     return data['url'], (data['user'], data['password'])
@@ -129,7 +131,7 @@ def required(ctx, param, value):
               help='Ancestor page id in Confluence')
 @click.option('-c', '--config',
               type=click.Path(resolve_path=True),
-              default=os.path.join(os.getenv('HOME'), '.wiki.json'),
+              default=click.get_app_dir('rst2wiki', force_posix=True),
               help='Configuration file')
 @click.version_option()
 def main(source, page, ancestor, config):
