@@ -75,12 +75,14 @@ def generate_content(filename, tip_lang):
         rst = f.read()
     try:
         doctree = publish_doctree(rst)
-        metadata = extract_metadata(doctree)
         content = publish_from_doctree(doctree, writer=confluence.Writer())
     except Exception:
         click.echo('There was error on processing ReST file')
         raise click.Abort()
-    tip_lang = tip_lang or metadata.get('warning')
+
+    metadata = extract_metadata(doctree)
+    if metadata:
+        tip_lang = tip_lang or metadata.get('warning')
     warning = autogen_warning.get(tip_lang, '')
 
     return warning + content, metadata
@@ -220,10 +222,11 @@ def main(source, page, ancestor, title, warning, config):
     wiki format and pushes it in Confluence instance.
     """
     content, metadata = generate_content(source, warning)
-    # arguments from command line have priority
-    page = page or metadata.get('page')
-    ancestor = ancestor or metadata.get('ancestor')
-    title = title or metadata.get('title')
+    if metadata:
+        # arguments from command line have priority
+        page = page or metadata.get('page')
+        ancestor = ancestor or metadata.get('ancestor')
+        title = title or metadata.get('title')
     # we absolutely need page id
     if page is None:
         raise click.BadParameter(
