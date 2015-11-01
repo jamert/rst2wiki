@@ -73,9 +73,13 @@ def generate_content(filename, tip_lang):
     click.echo('Preparing content...')
     with open(filename) as f:
         rst = f.read()
-    doctree = publish_doctree(rst)
-    metadata = extract_metadata(doctree)
-    content = publish_from_doctree(doctree, writer=confluence.Writer())
+    try:
+        doctree = publish_doctree(rst)
+        metadata = extract_metadata(doctree)
+        content = publish_from_doctree(doctree, writer=confluence.Writer())
+    except Exception:
+        click.echo('There was error on processing ReST file')
+        raise click.Abort()
     tip_lang = tip_lang or metadata.get('warning')
     warning = autogen_warning.get(tip_lang, '')
 
