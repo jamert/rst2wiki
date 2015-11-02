@@ -22,5 +22,9 @@ setup(
     entry_points='''
         [console_scripts]
         rst2wiki = rst2wiki:main
-    '''
+    ''',
+    classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python',
+    ]
 )
