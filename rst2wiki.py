@@ -116,7 +116,7 @@ def parse_metadata(text):
             :(?P<arg>page|ancestor|title|warning):
             # whitespace
             \s
-            # argument value (one word)
+            # argument value (all until end of line)
             (?P<val>.*)
         '''
         result = re.findall(pattern, text, flags=re.VERBOSE)
