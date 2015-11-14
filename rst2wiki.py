@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
+from functools import wraps
 import json
 import os
 from pprint import pformat
@@ -44,7 +45,7 @@ def config_data(config):
 
     with open(config) as f:
         data = json.load(f)
-    return data['url'], (data['user'], data['password'])
+    return data['url'], data['user'], data['password']
 
 
 def make_config(default_path):
@@ -66,7 +67,7 @@ def make_config(default_path):
              'password': password}, f)
     click.echo('Wrote configuration to {}'.format(path))
 
-    return url, (user, password)
+    return url, user, password
 
 
 def generate_content(filename, tip_lang):
@@ -125,30 +126,6 @@ def parse_metadata(text):
         return None
 
 
-def page_url(hostname, page_id):
-    return hostname.rstrip('/') + '/rest/api/content/{}'.format(page_id)
-
-
-def fetch_page(page_id, hostname, auth):
-    click.echo('Fetching page {}...'.format(page_id))
-    url = page_url(hostname, page_id)
-    response = requests.get(url, auth=auth)
-    response.raise_for_status()
-    return response.json()
-
-
-def push_page(meta, hostname, auth):
-    page_id = meta['id']
-    click.echo('Writing to Confluence...')
-    response = requests.put(
-        page_url(hostname, page_id),
-        auth=auth,
-        headers={'Content-Type': 'application/json'},
-        data=json.dumps(meta))
-    response.raise_for_status()
-    click.echo('Page {} successfully updated'.format(page_id))
-
-
 def prepare_for_sending(content, page, ancestor_page=None, title=None):
     meta = {
         'id': page['id'],
@@ -176,29 +153,76 @@ def prepare_for_sending(content, page, ancestor_page=None, title=None):
 
 
 def publish_content(content, page_id, ancestor_id=None,
-                    title=None, config=None):
-    hostname, auth = config_data(config)
+                    title=None, api=None):
+    page = api.fetch_page(page_id)
+    if ancestor_id:
+        ancestor_page = api.fetch_page(ancestor_id)
+    else:
+        ancestor_page = None
 
-    try:
-        page = fetch_page(page_id, hostname, auth)
-        if ancestor_id:
-            ancestor_page = fetch_page(ancestor_id, hostname, auth)
-        else:
-            ancestor_page = None
+    meta = prepare_for_sending(content, page, ancestor_page, title)
 
-        meta = prepare_for_sending(content, page, ancestor_page, title)
+    api.push_page(meta)
 
-        push_page(meta, hostname, auth)
-    except requests.ConnectionError:
-        raise click.ClickException(
-            'Could not connect to hostname {}'.format(hostname))
-    except requests.RequestException as e:
-        click.echo('Something went wrong, analyze response from server:')
-        if e.response.headers.get('Content-Type') == 'application/json':
-            click.echo(pformat(e.response.json()))
-        else:
-            click.echo(pformat(e.response.text))
-        raise click.Abort()
+
+class ConfluenceAPI(object):
+    """
+    Wrapper for subset of Confluence REST API.
+    """
+    def __init__(self, hostname, user, password):
+        self.hostname = hostname
+        self.user = user
+        self.password = password
+
+    @property
+    def auth(self):
+        return (self.user, self.password)
+
+    def error_handling(method):
+        @wraps(method)
+        def wrapped(*args, **kwargs):
+            try:
+                self = args[0]
+                return method(*args, **kwargs)
+            except requests.ConnectionError:
+                raise click.ClickException(
+                    'Could not connect to {}'.format(self.hostname))
+            except requests.RequestException as e:
+                click.echo(
+                    'Something went wrong, analyze response from server:')
+                if (e.response.headers.get('Content-Type') ==
+                        'application/json'):
+                    click.echo(pformat(e.response.json()))
+                else:
+                    click.echo(pformat(e.response.text))
+                raise click.Abort()
+
+        return wrapped
+
+    def page_url(self, page_id):
+        return (
+            self.hostname.rstrip('/') +
+            '/rest/api/content/{}'.format(page_id))
+
+    @error_handling
+    def fetch_page(self, page_id):
+        click.echo('Fetching page {}...'.format(page_id))
+        url = self.page_url(page_id)
+        response = requests.get(url, auth=self.auth)
+        response.raise_for_status()
+        return response.json()
+
+    @error_handling
+    def push_page(self, payload):
+        page_id = payload['id']
+        click.echo('Writing to Confluence...')
+        response = requests.put(
+            self.page_url(page_id),
+            auth=self.auth,
+            headers={'Content-Type': 'application/json'},
+            data=json.dumps(payload))
+        response.raise_for_status()
+        click.echo('Page {} successfully updated'.format(page_id))
 
 
 @click.command()
@@ -227,12 +251,15 @@ def main(source, page, ancestor, title, warning, config):
         page = page or metadata.get('page')
         ancestor = ancestor or metadata.get('ancestor')
         title = title or metadata.get('title')
+
+    hostname, user, password = config_data(config)
+    cfl = ConfluenceAPI(hostname, user, password)
     # we absolutely need page id
     if page is None:
         raise click.BadParameter(
             'Please provide page id using CLI or document metadata',
             param_hint='-p/--page')
-    publish_content(content, page, ancestor, title, config)
+    publish_content(content, page, ancestor, title, cfl)
 
 
 if __name__ == '__main__':
