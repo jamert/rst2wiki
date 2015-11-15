@@ -10,7 +10,7 @@ import click
 # dirty hack for locale bug (for docutils)
 os.environ['LC_CTYPE'] = 'en_US.UTF8'
 from docutils.core import publish_doctree, publish_from_doctree
-from docutils.nodes import comment, Text
+from docutils.nodes import comment, Text, title as title_class
 from rst2confluence import confluence
 import requests
 import requests.packages.urllib3
@@ -91,11 +91,28 @@ def generate_content(filename, tip_lang):
 
 def extract_metadata(doctree):
     comments = find_comments(doctree)
-    metadata = None
+    metadata = {}
     for c in comments:
         metadata = parse_metadata(c) or metadata
 
+    if 'title' not in metadata:
+        title = find_title(doctree)
+        if title:
+            metadata['title'] = title
+
     return metadata
+
+
+def find_title(doctree):
+    title = None
+    candidate_nodes = list(doctree.traverse(condition=title_class))
+    if candidate_nodes:
+        text_child = list(
+            candidate_nodes[0].traverse(condition=Text, include_self=False))
+        if text_child:
+            title = text_child[0].astext()
+
+    return title
 
 
 def find_comments(doctree):
