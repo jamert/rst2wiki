@@ -173,6 +173,11 @@ class ConfluenceAPI(object):
         self.hostname = hostname
         self.user = user
         self.password = password
+        self.session = requests.Session()
+        self.session.auth = (self.user, self.password)
+        self.session.headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'}
 
     @property
     def auth(self):
@@ -208,7 +213,7 @@ class ConfluenceAPI(object):
     def fetch_page(self, page_id):
         click.echo('Fetching page {}...'.format(page_id))
         url = self.page_url(page_id)
-        response = requests.get(url, auth=self.auth)
+        response = self.session.get(url)
         response.raise_for_status()
         return response.json()
 
@@ -216,10 +221,8 @@ class ConfluenceAPI(object):
     def push_page(self, payload):
         page_id = payload['id']
         click.echo('Writing to Confluence...')
-        response = requests.put(
+        response = self.session.put(
             self.page_url(page_id),
-            auth=self.auth,
-            headers={'Content-Type': 'application/json'},
             data=json.dumps(payload))
         response.raise_for_status()
         click.echo('Page {} successfully updated'.format(page_id))
