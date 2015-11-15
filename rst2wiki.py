@@ -64,7 +64,9 @@ def make_config(default_path):
         json.dump(
             {'url': url,
              'user': user,
-             'password': password}, f)
+             'password': password},
+            f,
+            indent=4)
     click.echo('Wrote configuration to {}'.format(path))
 
     return url, user, password
