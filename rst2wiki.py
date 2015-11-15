@@ -98,7 +98,7 @@ def extract_metadata(doctree):
     if 'title' not in metadata:
         title = find_title(doctree)
         if title:
-            metadata['title'] = title
+            metadata['inferred_title'] = title
 
     return metadata
 
@@ -307,6 +307,9 @@ def main(source, create, page, ancestor, title, warning, config):
         page = page or metadata.get('page')
         ancestor = ancestor or metadata.get('ancestor')
         title = title or metadata.get('title')
+        # if new page and title is not specified, use first header
+        if create and title is None:
+            title = metadata.get('inferred_title')
 
     # we need page id for update
     if page is None and not create:
