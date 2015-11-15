@@ -284,7 +284,8 @@ class ConfluenceAPI(object):
 
 @click.command()
 @click.argument('source', type=click.Path(exists=True, dir_okay=False))
-@click.option('--create', is_flag=True)
+@click.option('--create', is_flag=True,
+              help='Create new page, instead of updating existing page.')
 @click.option('-p', '--page', type=click.INT,
               help='Page id in Confluence')
 @click.option('-a', '--ancestor', type=click.INT,
