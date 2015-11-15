@@ -155,14 +155,34 @@ def prepare_for_sending(content, page, ancestor_page=None, title=None):
 def publish_content(content, page_id, ancestor_id=None,
                     title=None, api=None):
     page = api.fetch_page(page_id)
+    ancestor_page = api.fetch_page(ancestor_id) if ancestor_id else None
+
+    body = prepare_for_sending(content, page, ancestor_page, title)
+
+    api.update_page(body)
+
+
+def publish_content_on_new_page(content, ancestor_id=None,
+                                title=None, api=None):
+    ancestor_page = api.fetch_page(ancestor_id) if ancestor_id else None
+    body = {
+        'type': 'page',
+        'title': title,
+        'space': {
+            'key': ancestor_page['space']['key'] if ancestor_page
+                else api.default_space
+        },
+        'body': {
+            'wiki': {
+                'value': content,
+                'representation': 'wiki',
+            }
+        },
+    }
     if ancestor_id:
-        ancestor_page = api.fetch_page(ancestor_id)
-    else:
-        ancestor_page = None
+        body['ancestors'] = [{'type': 'page', 'id': ancestor_id}]
 
-    meta = prepare_for_sending(content, page, ancestor_page, title)
-
-    api.push_page(meta)
+    api.create_page(body)
 
 
 class ConfluenceAPI(object):
@@ -170,14 +190,21 @@ class ConfluenceAPI(object):
     Wrapper for subset of Confluence REST API.
     """
     def __init__(self, hostname, user, password):
-        self.hostname = hostname
+        self.hostname = hostname.rstrip('/')
         self.user = user
         self.password = password
+
         self.session = requests.Session()
         self.session.auth = (self.user, self.password)
         self.session.headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json'}
+
+        self.content_endpoint = (
+            self.hostname + '/rest/api/content'
+        )
+
+        self.default_space = '~' + self.user
 
     @property
     def auth(self):
@@ -205,9 +232,7 @@ class ConfluenceAPI(object):
         return wrapped
 
     def page_url(self, page_id):
-        return (
-            self.hostname.rstrip('/') +
-            '/rest/api/content/{}'.format(page_id))
+        return self.content_endpoint + '/{}'.format(page_id)
 
     @error_handling
     def fetch_page(self, page_id):
@@ -218,7 +243,7 @@ class ConfluenceAPI(object):
         return response.json()
 
     @error_handling
-    def push_page(self, payload):
+    def update_page(self, payload):
         page_id = payload['id']
         click.echo('Writing to Confluence...')
         response = self.session.put(
@@ -227,9 +252,20 @@ class ConfluenceAPI(object):
         response.raise_for_status()
         click.echo('Page {} successfully updated'.format(page_id))
 
+    @error_handling
+    def create_page(self, payload):
+        click.echo('Writing to Confluence...')
+        response = self.session.post(
+            self.content_endpoint,
+            data=json.dumps(payload))
+        response.raise_for_status()
+        click.echo('Page successfully created. Page id: {}'
+                   .format(response.json().get('id')))
+
 
 @click.command()
 @click.argument('source', type=click.Path(exists=True, dir_okay=False))
+@click.option('--create', is_flag=True)
 @click.option('-p', '--page', type=click.INT,
               help='Page id in Confluence')
 @click.option('-a', '--ancestor', type=click.INT,
@@ -243,7 +279,7 @@ class ConfluenceAPI(object):
               default=click.get_app_dir('rst2wiki', force_posix=True),
               help='Configuration file')
 @click.version_option()
-def main(source, page, ancestor, title, warning, config):
+def main(source, create, page, ancestor, title, warning, config):
     """
     Tool converts SOURCE file in reStructuredText format to confluence
     wiki format and pushes it in Confluence instance.
@@ -255,15 +291,25 @@ def main(source, page, ancestor, title, warning, config):
         ancestor = ancestor or metadata.get('ancestor')
         title = title or metadata.get('title')
 
+    # we need page id for update
+    if page is None and not create:
+        raise click.BadParameter(
+            'Please provide page id using option or document metadata',
+            param_hint='-p/--page')
+    # we need title for new page
+    if create and title is None:
+        raise click.BadParameter(
+            'Please provide title using option or document metadata',
+            param_hint='-t/--title')
+
     hostname, user, password = config_data(config)
     cfl = ConfluenceAPI(hostname, user, password)
-    # we absolutely need page id
-    if page is None:
-        raise click.BadParameter(
-            'Please provide page id using CLI or document metadata',
-            param_hint='-p/--page')
-    publish_content(content, page, ancestor, title, cfl)
 
+    # if set option --page is set, then option --create is ignored
+    if create and page is None:
+        publish_content_on_new_page(content, ancestor, title, cfl)
+    else:
+        publish_content(content, page, ancestor, title, cfl)
 
 if __name__ == '__main__':
     main()
