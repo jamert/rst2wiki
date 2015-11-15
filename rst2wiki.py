@@ -67,7 +67,7 @@ def make_config(default_path):
              'password': password},
             f,
             indent=4)
-    click.echo('Wrote configuration to {}'.format(path))
+    click.echo('Wrote configuration to {0}'.format(path))
 
     return url, user, password
 
@@ -161,7 +161,7 @@ def prepare_for_sending(content, page, ancestor_page=None, title=None):
 
         if meta['space']['key'] != ancestor_page['space']['key']:
             raise click.ClickException(
-                "Your ancestor page belongs to another space ({} <> {}).\n"
+                "Your ancestor page belongs to another space ({0} <> {1}).\n"
                 "Because it is currently not possible to change "
                 "page's space\nthrough Confluence REST API, "
                 "you'll need to do it manually."
@@ -237,7 +237,7 @@ class ConfluenceAPI(object):
                 return method(*args, **kwargs)
             except requests.ConnectionError:
                 raise click.ClickException(
-                    'Could not connect to {}'.format(self.hostname))
+                    'Could not connect to {0}'.format(self.hostname))
             except requests.RequestException as e:
                 click.echo(
                     'Something went wrong, analyze response from server:')
@@ -251,11 +251,11 @@ class ConfluenceAPI(object):
         return wrapped
 
     def page_url(self, page_id):
-        return self.content_endpoint + '/{}'.format(page_id)
+        return self.content_endpoint + '/{0}'.format(page_id)
 
     @error_handling
     def fetch_page(self, page_id):
-        click.echo('Fetching page {}...'.format(page_id))
+        click.echo('Fetching page {0}...'.format(page_id))
         url = self.page_url(page_id)
         response = self.session.get(url)
         response.raise_for_status()
@@ -269,7 +269,7 @@ class ConfluenceAPI(object):
             self.page_url(page_id),
             data=json.dumps(payload))
         response.raise_for_status()
-        click.echo('Page {} successfully updated'.format(page_id))
+        click.echo('Page {0} successfully updated'.format(page_id))
 
     @error_handling
     def create_page(self, payload):
@@ -278,7 +278,7 @@ class ConfluenceAPI(object):
             self.content_endpoint,
             data=json.dumps(payload))
         response.raise_for_status()
-        click.echo('Page successfully created. Page id: {}'
+        click.echo('Page successfully created. Page id: {0}'
                    .format(response.json().get('id')))
 
 
