@@ -1,6 +1,6 @@
 .. rst2wiki
 
-    :page: 10814244
+    :page: 10817084
     :ancestor: 1147842
     :title: Python + OBS (типа веселье)
 
