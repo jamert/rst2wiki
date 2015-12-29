@@ -9,14 +9,15 @@ import re
 import click
 # dirty hack for locale bug (for docutils)
 os.environ['LC_CTYPE'] = 'en_US.UTF8'
-from docutils.core import publish_doctree, publish_from_doctree
-from docutils.nodes import comment, Text, title as title_class
-from rst2confluence import confluence
-import requests
-import requests.packages.urllib3
+from docutils.core import publish_doctree, publish_from_doctree  # noqa
+from docutils.nodes import comment, Text, title as title_class  # noqa
+from rst2confluence import confluence  # noqa
+import requests  # noqa
+import requests.packages.urllib3  # noqa
 requests.packages.urllib3.disable_warnings()
 
 
+# TODO: remove confluence-specific markdown if possible
 autogen_warning = {
     'off': '',
     'en': (
@@ -326,7 +327,7 @@ def main(source, create, page, ancestor, title, warning, config):
     hostname, user, password = config_data(config)
     cfl = ConfluenceAPI(hostname, user, password)
 
-    # if set option --page is set, then option --create is ignored
+    # if option --page is set, then option --create is ignored
     if create and page is None:
         publish_content_on_new_page(content, ancestor, title, cfl)
     else:
