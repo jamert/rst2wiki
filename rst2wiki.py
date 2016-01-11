@@ -301,7 +301,7 @@ class ConfluenceAPI(object):
 def main(source, create, page, ancestor, title, warning, config):
     """
     Tool converts SOURCE file in reStructuredText format to confluence
-    wiki format and pushes it in Confluence instance.
+    wiki format and pushes it to Confluence instance.
     """
     content, metadata = generate_content(source, warning)
     if metadata:
