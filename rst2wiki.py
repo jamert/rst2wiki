@@ -53,10 +53,13 @@ def make_config(default_path):
         default=default_path)
     url = click.prompt('Confluence URL', type=click.STRING)
     user = click.prompt('Confluence login', type=click.STRING)
-    password = click.prompt(
-        'Confluence password',
-        type=click.STRING,
-        hide_input=True)
+    store_password = click.confirm(
+        'Store the Confluence password in the config file (in cleartext)? '
+        'If not, you will be prompted for the password every time.')
+    if store_password:
+        password = get_password(user)
+    else:
+        password = None
 
     with open(path, 'w') as f:
         json.dump(
@@ -68,6 +71,13 @@ def make_config(default_path):
     click.echo('Wrote configuration to {0}'.format(path))
 
     return url, user, password
+
+
+def get_password(user):
+    return click.prompt(
+        'Confluence password for user {0}'.format(user),
+        type=click.STRING,
+        hide_input=True)
 
 
 def generate_content(filename, tip_lang):
@@ -325,6 +335,8 @@ def main(source, create, page, ancestor, title, warning, config):
             param_hint='-t/--title')
 
     hostname, user, password = config_data(config)
+    if password is None:
+        password = get_password(user)
     cfl = ConfluenceAPI(hostname, user, password)
 
     # if option --page is set, then option --create is ignored
