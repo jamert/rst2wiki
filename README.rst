@@ -34,7 +34,7 @@ and (2) creating new page.
 
 First time it will ask you for some configuration values:
 Confluence url (don't forget ``https://`` part), your login and password
-and store it for further usage.
+and store it for further usage. (Password storage is optional.)
 
 Assuming you want to create page first from your ReST source, invocation
 could be as follows (note option ``--create``)::
