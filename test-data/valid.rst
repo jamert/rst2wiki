@@ -1,8 +1,7 @@
 .. rst2wiki
 
-    :page: 10817084
-    :ancestor: 1147842
-    :title: Python + OBS (типа веселье)
+    :page: 65594
+    :title: Python + OBS
 
 
 Сборка python-based deb-пакета под OBS
@@ -61,13 +60,13 @@ python-based debian-пакет.
 
       -- Artem Dayneko <a.dayneko@ngenix.net>  Thu, 23 Apr 2015 19:47:49 +0300
 
-6. debian.compat - везде одинаковый.::
+6. debian.compat - везде одинаковый::
 
      5
 
 7. ncdn-stat.dsc почти повторяет по содержимому debian.control.
    Обратите внимание на Files - хэши и размеры (первые два поля)
-   не обязательно должны быть верными (они заполнятся потом):::
+   не обязательно должны быть верными (они заполнятся потом)::
 
      Format: 1.0
      Source: ncdn-stat
@@ -86,7 +85,7 @@ python-based debian-пакет.
    дожен находиться файл ``requirements.txt`` в формате, соответствующем выводу
    команды ``pip freeze``. Пока что я не могу предложить ничего, кроме запихивания
    этого файла внуть архива руками. Его содержимое можно прочитать в поле
-   ``install_requires`` в ``setup.py``. Пример:::
+   ``install_requires`` в ``setup.py``. Пример::
 
      futures==2.1.6
      gevent==1.0.1
